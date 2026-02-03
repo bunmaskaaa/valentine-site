@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stuti, Be My Valentine 💘</title>
+  <style>
+    :root { --yesScale: 1; --shake: 0deg; }
+    * { box-sizing: border-box; }
+    body {
+      height: 100vh; margin: 0; display: grid; place-items: center;
+      font-family: "Comic Sans MS","Trebuchet MS",system-ui,sans-serif;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+      overflow: hidden; transition: filter 200ms ease;
+    }
+    .card {
+      width: min(720px, 92vw);
+      padding: 28px 22px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.18);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      text-align: center;
+      position: relative;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 4vw, 3rem);
+      color: #fff;
+      text-shadow: 2px 2px rgba(255, 95, 126, 0.9);
+    }
+    .sub { color: rgba(255,255,255,0.92); font-size: 1.05rem; margin-bottom: 14px; }
+    .arena {
+      height: 240px; position: relative; margin: 18px auto 10px;
+      border-radius: 18px; border: 2px dashed rgba(255,255,255,0.55);
+      background: rgba(255,255,255,0.12); overflow: hidden;
+    }
+    button {
+      border: none; border-radius: 14px; padding: 14px 22px;
+      font-size: 1.35rem; cursor: pointer; position: absolute;
+      user-select: none;
+      transition: transform 180ms ease, left 130ms ease, top 130ms ease, opacity 200ms ease;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      white-space: nowrap;
+    }
+    #yes {
+      left: 50%; top: 60%;
+      transform: translateX(-50%) scale(var(--yesScale)) rotate(var(--shake));
+      background: #ff5f7e; color: white;
+    }
+    #yes:active { transform: translateX(-50%) scale(calc(var(--yesScale) * 0.98)); }
+    #no {
+      left: 18%; top: 62%;
+      background: white; color: #ff5f7e;
+      border: 2px solid rgba(255,95,126,0.35);
+    }
+    .reaction {
+      margin-top: 10px; min-height: 28px;
+      color: #fff; font-size: 1.1rem;
+      text-shadow: 1px 1px rgba(0,0,0,0.12);
+    }
+    .meterWrap { margin: 10px auto 0; width: min(520px, 85%); }
+    .meterLabel {
+      color: rgba(255,255,255,0.9);
+      font-size: 0.95rem; margin-bottom: 6px;
+      display: flex; justify-content: space-between;
+    }
+    .meter { height: 12px; border-radius: 999px; background: rgba(255,255,255,0.25); overflow: hidden; }
+    .meter > div { height: 100%; width: 0%; background: rgba(255, 95, 126, 0.95); transition: width 200ms ease; }
+    .tiny { margin-top: 10px; font-size: 0.92rem; color: rgba(255,255,255,0.85); }
+    .heart {
+      position: fixed; bottom: -40px; font-size: 22px;
+      pointer-events: none; opacity: 0.85;
+      animation: floatUp linear forwards;
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.2));
+    }
+    @keyframes floatUp {
+      to { transform: translateY(-110vh) translateX(var(--drift)); opacity: 0.05; }
+    }
+    .sad { filter: saturate(0.88) contrast(0.96) brightness(0.98); }
+    .mobileTip { display: none; color: rgba(255,255,255,0.9); font-size: 0.95rem; margin-top: 10px; }
+    @media (hover: none) and (pointer: coarse) { .mobileTip { display: block; } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Stuti Sinha, will you be my Valentine? 💖</h1>
+    <div class="sub">Choose wisely… the universe is watching 👀</div>
+
+    <div class="arena" id="arena">
+      <button id="yes">YES 💘</button>
+      <button id="no">NO 😒</button>
+    </div>
+
+    <div class="reaction" id="reaction"></div>
+
+    <div class="meterWrap">
+      <div class="meterLabel">
+        <span>Emotional damage meter</span>
+        <span id="countLabel">0 / 7</span>
+      </div>
+      <div class="meter"><div id="meterFill"></div></div>
+    </div>
+
+    <div class="tiny">P.S. Trying to click “NO” may have… consequences 😌</div>
+    <div class="mobileTip">On phone: tap NO and watch it panic-move.</div>
+  </div>
+
+  <script>
+    const arena = document.getElementById("arena");
+    const noBtn = document.getElementById("no");
+    const yesBtn = document.getElementById("yes");
+    const reaction = document.getElementById("reaction");
+    const meterFill = document.getElementById("meterFill");
+    const countLabel = document.getElementById("countLabel");
+
+    let attempts = 0;
+    let yesScale = 1;
+
+    const maxAttemptsBeforeNoVanish = 7;
+
+    const lines = [
+      "Wow. That hurt. 😭",
+      "Stuti… really? 😔",
+      "I’m gonna pretend I didn’t see that. 😌",
+      "Okay that’s personal now. 💀",
+      "You’re breaking my heart (literally). 💔",
+      "Fine. The universe said NO to your NO. 😤",
+      "NO is no longer an option 😌💖"
+    ];
+
+    function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+    function moveNoRandomly() {
+      const rect = arena.getBoundingClientRect();
+      const btnRect = noBtn.getBoundingClientRect();
+
+      // Keep button inside arena
+      const maxLeft = rect.width - btnRect.width - 10;
+      const maxTop  = rect.height - btnRect.height - 10;
+
+      const left = Math.random() * maxLeft;
+      const top  = Math.random() * maxTop;
+
+      noBtn.style.left = `${left}px`;
+      noBtn.style.top  = `${top}px`;
+    }
+
+    function emotionalReact() {
+      attempts++;
+      document.body.classList.add("sad");
+
+      // YES grows
+      yesScale += 0.12;
+      document.documentElement.style.setProperty("--yesScale", yesScale.toFixed(2));
+
+      // YES tiny shake for comedy
+      const shake = (Math.random() * 6 - 3).toFixed(2) + "deg";
+      document.documentElement.style.setProperty("--shake", shake);
+
+      // Update reaction text + meter
+      reaction.textContent = lines[clamp(attempts - 1, 0, lines.length - 1)];
+      const pct = clamp((attempts / maxAttemptsBeforeNoVanish) * 100, 0, 100);
+      meterFill.style.width = pct + "%";
+      countLabel.textContent = `${Math.min(attempts, maxAttemptsBeforeNoVanish)} / ${maxAttemptsBeforeNoVanish}`;
+
+      // Hearts
+      spawnHearts(6);
+
+      // After enough attempts, NO disappears
+      if (attempts >= maxAttemptsBeforeNoVanish) {
+        noBtn.style.opacity = "0";
+        setTimeout(() => {
+          noBtn.style.display = "none";
+        }, 250);
+      }
+    }
+
+    function spawnHearts(n = 4) {
+      for (let i = 0; i < n; i++) {
+        const el = document.createElement("div");
+        el.className = "heart";
+        el.textContent = ["💖","💘","💗","💞","💕"][Math.floor(Math.random()*5)];
+        el.style.left = Math.random() * 100 + "vw";
+        el.style.setProperty("--drift", (Math.random() * 160 - 80) + "px");
+        const dur = (Math.random() * 2 + 2.5).toFixed(2);
+        el.style.animationDuration = dur + "s";
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), (parseFloat(dur) * 1000) + 200);
+      }
+    }
+
+    // 1) NO dodges cursor (desktop)
+    noBtn.addEventListener("mouseover", () => {
+      if (attempts >= maxAttemptsBeforeNoVanish) return;
+      emotionalReact();
+      moveNoRandomly();
+    });
+
+    // 2) NO moves randomly (every attempt) + 4) emotional reaction
+    //  (Handled above + also on click/tap for mobile)
+    noBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (attempts >= maxAttemptsBeforeNoVanish) return;
+      emotionalReact();
+      moveNoRandomly();
+    });
+
+    // Initial position
+    requestAnimationFrame(() => moveNoRandomly());
+
+    // YES click = success screen
+    yesBtn.addEventListener("click", () => {
+      document.body.innerHTML = `
+        <div style="
+          height:100vh; display:grid; place-items:center;
+          font-family:'Comic Sans MS','Trebuchet MS',system-ui,sans-serif;
+          background:linear-gradient(135deg,#ff758c,#ff7eb3);
+          color:white; text-align:center; padding:24px;
+        ">
+          <div>
+            <div style="font-size:3rem; margin-bottom:10px;">YAYYYYY 💘🥰</div>
+            <div style="font-size:1.4rem;">Best decision ever, Stuti 💖</div>
+            <div style="margin-top:14px; font-size:1.05rem; opacity:0.95;">
+              Now come here. Valentine accepted. 😌✨
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  </script>
+</body>
+</html>
